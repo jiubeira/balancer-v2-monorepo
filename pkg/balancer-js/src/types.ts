@@ -13,6 +13,15 @@ export type FundManagement = {
   toInternalBalance: boolean;
 };
 
+// TODO(https://github.com/jiubeira/balancer-v2-monorepo/issues/7)
+// Double check whether this definition is necessary.
+export enum PoolMetadataRegistryTopic {
+  Tokenomics = 0,
+  Performance,
+  General,
+  Support,
+};
+
 // Swaps
 
 export enum SwapKind {
