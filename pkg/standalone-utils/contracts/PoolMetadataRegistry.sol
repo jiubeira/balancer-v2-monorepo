@@ -16,6 +16,7 @@ pragma solidity ^0.7.0;
 pragma experimental ABIEncoderV2;
 
 import "@balancer-labs/v2-solidity-utils/contracts/helpers/BalancerErrors.sol";
+import "@balancer-labs/v2-vault/contracts/interfaces/IVault.sol";
 
 /**
  * @dev This contract emits events with metadata for existing pools,
@@ -26,6 +27,8 @@ import "@balancer-labs/v2-solidity-utils/contracts/helpers/BalancerErrors.sol";
 contract PoolMetadataRegistry {
     // Index for metadata events, to be used as metadata unique identifiers.
     uint256 private _nextMetadataIndex = 0;
+    // Vault reference to validate pool IDs.
+    IVault private immutable _vault;
 
     // Metadata type identifier.
     enum Topic { TOKENOMICS, PERFORMANCE, GENERAL, SUPPORT }
@@ -44,25 +47,15 @@ contract PoolMetadataRegistry {
         uint256 id
     );
 
-    // TODO(https://github.com/jiubeira/balancer-v2-monorepo/issues/2):
-    // Replace this modifier with a proper valid pool check.
-    bytes32 private constant _POOL_ID_1 = "1";
-    bytes32 private constant _POOL_ID_2 = "2";
-    bytes32 private constant _POOL_ID_3 = "3";
-
-    modifier withRegisteredPool(bytes32 poolId) {
-        _require(
-            poolId == _POOL_ID_1 ||
-            poolId == _POOL_ID_2 ||
-            poolId == _POOL_ID_3,
-            Errors.INVALID_POOL_ID);
-        _;
+    constructor(IVault vault) {
+        _vault = vault;
     }
 
     function addMetadata(bytes32 poolId, Topic topic, string calldata data)
         external
-        withRegisteredPool(poolId)
     {
+        // getPool will revert if the poolId is invalid.
+        _vault.getPool(poolId);
         uint256 id = _nextMetadataIndex;
         emit PoolMetadata(poolId, topic, data, id);
         _nextMetadataIndex = _nextMetadataIndex + 1;
