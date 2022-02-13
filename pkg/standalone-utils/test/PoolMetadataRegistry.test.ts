@@ -41,38 +41,31 @@ describe('PoolMetadataRegistry', function () {
       // As long as poolId and topic are valid, more than one metadata piece
       // can be added to the same pool, even with matching topics.
       // Metadata id is expected to increment with each call.
-      const metadataList = [
-        {
-          poolId: poolIds[0],
-          topic: PoolMetadataRegistryTopic.Tokenomics,
-          data: 'Super interesting tokenomics',
-          id: 0,
-        },
-        {
-          poolId: poolIds[1],
-          topic: PoolMetadataRegistryTopic.General,
-          data: 'General info',
-          id: 1,
-        },
-        {
-          poolId: poolIds[1],
-          topic: PoolMetadataRegistryTopic.Performance,
-          data: 'Pool performance',
-          id: 2,
-        },
-        {
-          poolId: poolIds[2],
-          topic: PoolMetadataRegistryTopic.Support,
-          data: 'Support page',
-          id: 3,
-        },
-        {
-          poolId: poolIds[0],
-          topic: PoolMetadataRegistryTopic.Tokenomics,
-          data: 'More about tokenomics',
-          id: 4,
-        },
-      ];
+      let index = 0;
+      let metadataList = [];
+      for (const poolId of poolIds) {
+        for (let topic in PoolMetadataRegistryTopic) {
+          let topicNumber = Number(topic);
+
+          if (isNaN(topicNumber)) {
+            continue;
+          }
+          const metadata1 = {
+            poolId: poolId,
+            topic: topicNumber,
+            data: `Data for ${poolId}, topic ${topic} at index ${index}`,
+            id: index++,
+          }
+          const metadata2 = {
+            poolId: poolId,
+            topic: topicNumber,
+            data: `More data for ${poolId}, topic ${topic} at index ${index}`,
+            id: index++,
+          }
+          metadataList.push(metadata1);
+          metadataList.push(metadata2);
+        }
+      }
 
       for (const metadata of metadataList) {
         const tx = await poolMetadataRegistry.connect(user).addMetadata(
