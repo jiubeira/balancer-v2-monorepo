@@ -22,6 +22,19 @@ export enum PoolMetadataRegistryTopic {
   Support,
 };
 
+export enum PoolMetadataRegistryMetadataType {
+  Content = 0,
+  Comment,
+};
+
+export enum PoolMetadataRegistryMetadataFlag {
+  Spam = 0,
+  Sponsored,
+  AdminReviewed,
+  Superseded,
+  Reply,
+};
+
 // Swaps
 
 export enum SwapKind {
