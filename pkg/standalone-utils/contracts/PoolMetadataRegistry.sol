@@ -97,7 +97,7 @@ contract PoolMetadataRegistry is Ownable {
         external
         onlyOwner
     {
-        _require(metadataId <= _nextMetadataIndex, Errors.OUT_OF_BOUNDS);
+        _require(metadataId < _nextMetadataIndex, Errors.OUT_OF_BOUNDS);
         emit MetadataFlagged(metadataId, flag, note);
     }
 

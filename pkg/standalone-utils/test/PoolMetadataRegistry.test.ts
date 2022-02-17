@@ -58,6 +58,8 @@ describe('PoolMetadataRegistry', function () {
   let poolMetadataRegistry: Contract, admin: SignerWithAddress, user: SignerWithAddress, vault: Contract;
   let poolIds: Array<String>, validPoolId: String, invalidPoolId: String, validTopic: PoolMetadataRegistryTopic;
   let invalidTopic: Number;
+  const poolMetadataCreatedEventName = 'PoolMetadataCreated';
+  const metadataFlaggedEventName = 'MetadataFlagged';
 
   before('setup signers', async () => {
     [, admin, user] = await ethers.getSigners();
@@ -96,7 +98,7 @@ describe('PoolMetadataRegistry', function () {
           metadata.topic,
           metadata.data);
         const receipt = await tx.wait();
-        expectEvent.inReceipt(receipt, 'PoolMetadataCreated', metadata);
+        expectEvent.inReceipt(receipt, poolMetadataCreatedEventName, metadata);
       }
     });
 
@@ -134,7 +136,7 @@ describe('PoolMetadataRegistry', function () {
           metadata.topic,
           metadata.data);
         const receipt = await tx.wait();
-        expectEvent.inReceipt(receipt, 'PoolMetadataCreated', metadata);
+        expectEvent.inReceipt(receipt, poolMetadataCreatedEventName, metadata);
       }
     });
 
@@ -156,38 +158,42 @@ describe('PoolMetadataRegistry', function () {
   });
 
   describe('flagMetadata', () => {
-    const validMetadataId = 1;
-    const invalidMetadataId = 123456;
+    type Comment = {
+      id: Number | undefined,
+      text: String,
+    };
+
+    let interestingComment: Comment = {id: undefined, text: 'Interesting comment by user'};
+    let spamComment: Comment = {id: undefined, text: 'Spam comment by user'};
+    let simpleComment: Comment = {id: undefined, text: 'Just a comment to reply to'};
+    let comments = [interestingComment, spamComment, simpleComment];
+    const invalidMetadataId = comments.length;
+
     sharedBeforeEach('add some metadata to existing pools', async () => {
-      await (await poolMetadataRegistry.connect(admin).createContent(
-        validPoolId,
-        validTopic,
-        'Content by admin')).wait();
-      await (await poolMetadataRegistry.connect(user).createComment(
-        validPoolId,
-        validTopic,
-        'Interesting comment by user')).wait();
-      await (await poolMetadataRegistry.connect(user).createComment(
-        validPoolId,
-        validTopic,
-        'Spam comment by user')).wait();
+      for (let i = 0; i < comments.length; ++i) {
+        await (await poolMetadataRegistry.connect(user).createComment(
+          validPoolId,
+          validTopic,
+          comments[i])).wait();
+        comments[i].id = i;
+      }
     });
 
     it('flags some user comments', async () => {
       const metadataReviewedFlagEvent = {
-        id: 1,
+        id: interestingComment.id,
         flag: PoolMetadataRegistryMetadataFlag.AdminReviewed,
-        note: 'Thanks for the comment!'
+        note: 'Thanks for the comment! Contribution accepted.'
       };
       let tx = await poolMetadataRegistry.connect(admin).flagMetadata(
         metadataReviewedFlagEvent.id,
         metadataReviewedFlagEvent.flag,
         metadataReviewedFlagEvent.note);
       let receipt = await tx.wait();
-      expectEvent.inReceipt(receipt, 'MetadataFlagged', metadataReviewedFlagEvent);
+      expectEvent.inReceipt(receipt, metadataFlaggedEventName, metadataReviewedFlagEvent);
 
       const metadataSpamEvent = {
-        id: 2,
+        id: spamComment.id,
         flag: PoolMetadataRegistryMetadataFlag.Spam,
         note: 'Comment marked as inappropriate by admin.'
       };
@@ -196,7 +202,19 @@ describe('PoolMetadataRegistry', function () {
         metadataSpamEvent.flag,
         metadataSpamEvent.note);
       receipt = await tx.wait();
-      expectEvent.inReceipt(receipt, 'MetadataFlagged', metadataSpamEvent);
+      expectEvent.inReceipt(receipt, metadataFlaggedEventName, metadataSpamEvent);
+
+      const metadataReplyEvent = {
+        id: simpleComment.id,
+        flag: PoolMetadataRegistryMetadataFlag.Reply,
+        note: 'Just replying, no explicit approval.'
+      };
+      tx = await poolMetadataRegistry.connect(admin).flagMetadata(
+        metadataReplyEvent.id,
+        metadataReplyEvent.flag,
+        metadataReplyEvent.note);
+      receipt = await tx.wait();
+      expectEvent.inReceipt(receipt, metadataFlaggedEventName, metadataReplyEvent);
     });
 
     it('tries to flag metadata incorrectly and reverts', async () => {
@@ -209,7 +227,7 @@ describe('PoolMetadataRegistry', function () {
       // TODO(https://github.com/jiubeira/balancer-v2-monorepo/issues/6):
       // Check if there's a better way of testing invalid enum inputs.
       tx = poolMetadataRegistry.connect(admin).flagMetadata(
-        1,
+        interestingComment.id,
         1234,
         'Data');
       await expect(tx).to.be.reverted;
@@ -217,7 +235,7 @@ describe('PoolMetadataRegistry', function () {
 
     it('tries to moderate without admin rights', async () => {
       let tx = poolMetadataRegistry.connect(user).flagMetadata(
-        validMetadataId,
+        interestingComment.id,
         PoolMetadataRegistryMetadataFlag.Spam,
         'I do not have admin rights, but let\s try anyways');
       await expect(tx).to.be.revertedWith('CALLER_IS_NOT_OWNER');
